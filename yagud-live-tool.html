@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yagud Live 数据提取工具</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --border: #1e1e2e;
+    --accent: #00e5ff;
+    --accent2: #ff3d71;
+    --text: #e8e8f0;
+    --muted: #5a5a7a;
+    --success: #00e096;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans SC', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 760px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  header {
+    margin-bottom: 48px;
+    text-align: center;
+  }
+
+  .logo-tag {
+    display: inline-block;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    border: 1px solid rgba(0,229,255,0.3);
+    padding: 4px 12px;
+    margin-bottom: 20px;
+  }
+
+  h1 {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    line-height: 1.2;
+    margin-bottom: 10px;
+  }
+
+  h1 span {
+    color: var(--accent);
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 300;
+    letter-spacing: 0.3px;
+  }
+
+  /* Upload zone */
+  .upload-zone {
+    border: 1.5px dashed var(--border);
+    border-radius: 4px;
+    padding: 60px 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: var(--surface);
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .upload-zone::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: var(--accent);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .upload-zone:hover,
+  .upload-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(0,229,255,0.03);
+  }
+
+  .upload-zone:hover::before,
+  .upload-zone.dragover::before {
+    opacity: 1;
+  }
+
+  .upload-icon {
+    font-size: 40px;
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  .upload-title {
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+
+  .upload-hint {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .upload-hint span {
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+  }
+
+  input[type="file"] {
+    display: none;
+  }
+
+  /* Status bar */
+  .status {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 24px;
+    font-size: 13px;
+  }
+
+  .status.show { display: flex; }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+    animation: pulse 1.5s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .status.done .status-dot {
+    background: var(--success);
+    animation: none;
+  }
+
+  .status.error .status-dot {
+    background: var(--accent2);
+    animation: none;
+  }
+
+  /* Preview table */
+  .preview-section {
+    display: none;
+    margin-bottom: 24px;
+  }
+
+  .preview-section.show { display: block; }
+
+  .section-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  th {
+    padding: 10px 14px;
+    text-align: left;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: var(--accent);
+    border-bottom: 1px solid var(--border);
+    font-weight: 400;
+  }
+
+  td {
+    padding: 9px 14px;
+    color: var(--text);
+    border-bottom: 1px solid rgba(30,30,46,0.5);
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  tr:hover td { background: rgba(0,229,255,0.02); }
+
+  /* Stats row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px 18px;
+    border-radius: 4px;
+  }
+
+  .stat-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+  }
+
+  .stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* Button */
+  .btn-download {
+    display: block;
+    width: 100%;
+    padding: 16px;
+    background: var(--accent);
+    color: #0a0a0f;
+    border: none;
+    cursor: pointer;
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+  }
+
+  .btn-download:hover {
+    background: #33eaff;
+    transform: translateY(-1px);
+  }
+
+  .btn-download:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* Fields reference */
+  .fields-ref {
+    margin-top: 32px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .fields-header {
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+  }
+
+  .fields-header:hover { color: var(--text); }
+
+  .fields-body {
+    display: none;
+    padding: 16px 18px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .field-tag {
+    font-size: 11px;
+    padding: 4px 10px;
+    background: rgba(0,229,255,0.06);
+    border: 1px solid rgba(0,229,255,0.15);
+    border-radius: 2px;
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* Footer */
+  footer {
+    margin-top: 48px;
+    text-align: center;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 2px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="logo-tag">YAGUD FITNESS</div>
+    <h1>直播数据<span>提取工具</span></h1>
+    <p class="subtitle">上传 TikTok 导出文件 → 自动提取关键字段 → 下载 CSV 导入 Lark</p>
+  </header>
+
+  <!-- Upload -->
+  <div class="upload-zone" id="uploadZone">
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+    <span class="upload-icon">📂</span>
+    <div class="upload-title">点击上传 / 拖拽文件到此处</div>
+    <div class="upload-hint">支持 <span>.xlsx</span> 格式 · TikTok 直播数据导出文件</div>
+  </div>
+
+  <!-- Status -->
+  <div class="status" id="status">
+    <div class="status-dot"></div>
+    <span id="statusText">正在处理...</span>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row" id="statsRow" style="display:none">
+    <div class="stat-card">
+      <div class="stat-label">SESSIONS</div>
+      <div class="stat-value" id="statRows">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">FIELDS</div>
+      <div class="stat-value">16</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">READY</div>
+      <div class="stat-value" style="color:var(--success)">CSV</div>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div class="preview-section" id="previewSection">
+    <div class="section-label">数据预览（前3行）</div>
+    <div class="table-wrap">
+      <table id="previewTable"></table>
+    </div>
+  </div>
+
+  <!-- Download -->
+  <button class="btn-download" id="downloadBtn" disabled>⬇ 下载 CSV 文件</button>
+
+  <!-- Fields reference -->
+  <div class="fields-ref">
+    <div class="fields-header">
+      <span>提取字段列表</span>
+      <span>▾</span>
+    </div>
+    <div class="fields-body">
+      <span class="field-tag">Account name</span>
+      <span class="field-tag">Handle</span>
+      <span class="field-tag">Room name</span>
+      <span class="field-tag">Start time</span>
+      <span class="field-tag">LIVE duration</span>
+      <span class="field-tag">LIVE-attributed GMV</span>
+      <span class="field-tag">AOV</span>
+      <span class="field-tag">Viewers</span>
+      <span class="field-tag">LIVE product clicks</span>
+      <span class="field-tag">Views</span>
+      <span class="field-tag">Avg. viewing duration</span>
+      <span class="field-tag">CTOR</span>
+      <span class="field-tag">Impressions per hour</span>
+      <span class="field-tag">Tap-through rate</span>
+      <span class="field-tag">CTR</span>
+      <span class="field-tag">New followers</span>
+    </div>
+  </div>
+
+  <footer>YAGUD FITNESS · LIVE OPS TOOL · 2026</footer>
+</div>
+
+<script>
+const TARGET_FIELDS = [
+  'Account name', 'Handle', 'Room name', 'Start time', 'LIVE duration',
+  'LIVE-attributed GMV', 'AOV', 'Viewers', 'LIVE product clicks', 'Views',
+  'Avg. viewing duration', 'CTOR', 'Impressions per hour',
+  'Tap-through rate', 'CTR', 'New followers'
+];
+
+let csvContent = '';
+
+// Upload zone interactions
+const zone = document.getElementById('uploadZone');
+const input = document.getElementById('fileInput');
+
+zone.addEventListener('click', () => input.click());
+
+zone.addEventListener('dragover', e => {
+  e.preventDefault();
+  zone.classList.add('dragover');
+});
+
+zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+
+zone.addEventListener('drop', e => {
+  e.preventDefault();
+  zone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+});
+
+input.addEventListener('change', () => {
+  if (input.files[0]) processFile(input.files[0]);
+});
+
+function showStatus(msg, type = 'loading') {
+  const el = document.getElementById('status');
+  el.className = 'status show ' + type;
+  document.getElementById('statusText').textContent = msg;
+}
+
+function formatStartTime(val) {
+  if (!val) return '';
+  // Handle Excel date serial number
+  if (typeof val === 'number') {
+    const date = XLSX.SSF.parse_date_code(val);
+    if (date) {
+      const y = date.y;
+      const m = String(date.m).padStart(2, '0');
+      const d = String(date.d).padStart(2, '0');
+      const h = String(date.H).padStart(2, '0');
+      const min = String(date.M).padStart(2, '0');
+      return `${y}-${m}-${d} ${h}:${min}`;
+    }
+  }
+  // Handle ISO string like 2026-05-06T10:00:51
+  const str = String(val);
+  const iso = str.match(/(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+  if (iso) return `${iso[1]} ${iso[2]}`;
+  return str;
+}
+
+function cleanGMV(val) {
+  if (val === null || val === undefined) return '';
+  return String(val).replace(/^\$/, '');
+}
+
+function processFile(file) {
+  showStatus('正在读取文件...');
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type: 'array', cellDates: false });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+      // Find header row
+      let headerRow = -1;
+      let headers = [];
+      for (let i = 0; i < Math.min(10, raw.length); i++) {
+        if (raw[i].includes('Account name') || raw[i].includes('Handle')) {
+          headerRow = i;
+          headers = raw[i].map(h => String(h).trim());
+          break;
+        }
+      }
+
+      if (headerRow === -1) {
+        showStatus('未找到有效数据表头，请确认文件格式正确', 'error');
+        return;
+      }
+
+      // Map target fields to column indices
+      const colMap = {};
+      TARGET_FIELDS.forEach(field => {
+        const idx = headers.indexOf(field);
+        if (idx !== -1) colMap[field] = idx;
+      });
+
+      const missing = TARGET_FIELDS.filter(f => !(f in colMap));
+      if (missing.length > 0) {
+        showStatus(`以下字段未找到：${missing.join(', ')}`, 'error');
+        return;
+      }
+
+      // Extract data rows
+      const dataRows = raw.slice(headerRow + 1).filter(row =>
+        row.some(cell => cell !== '' && cell !== null && cell !== undefined)
+      );
+
+      if (dataRows.length === 0) {
+        showStatus('文件中没有数据行', 'error');
+        return;
+      }
+
+      // Build output rows
+      const outputRows = dataRows.map(row => {
+        return TARGET_FIELDS.map(field => {
+          let val = row[colMap[field]];
+          if (field === 'Start time') val = formatStartTime(val);
+          else if (field === 'LIVE-attributed GMV' || field === 'AOV') val = cleanGMV(val);
+          else if (val === null || val === undefined) val = '';
+          return String(val);
+        });
+      });
+
+      // Build CSV
+      const escape = v => {
+        if (v.includes(',') || v.includes('"') || v.includes('\n')) {
+          return '"' + v.replace(/"/g, '""') + '"';
+        }
+        return v;
+      };
+
+      const lines = [
+        TARGET_FIELDS.map(escape).join(','),
+        ...outputRows.map(row => row.map(escape).join(','))
+      ];
+      csvContent = lines.join('\n');
+
+      // Update UI
+      showStatus(`成功提取 ${dataRows.length} 条直播记录`, 'done');
+
+      document.getElementById('statRows').textContent = dataRows.length;
+      document.getElementById('statsRow').style.display = 'grid';
+
+      // Preview table
+      const previewRows = outputRows.slice(0, 3);
+      let tableHTML = '<thead><tr>' +
+        TARGET_FIELDS.map(f => `<th>${f}</th>`).join('') +
+        '</tr></thead><tbody>';
+      previewRows.forEach(row => {
+        tableHTML += '<tr>' + row.map(v => `<td>${v || '—'}</td>`).join('') + '</tr>';
+      });
+      tableHTML += '</tbody>';
+      document.getElementById('previewTable').innerHTML = tableHTML;
+      document.getElementById('previewSection').classList.add('show');
+
+      document.getElementById('downloadBtn').disabled = false;
+
+    } catch (err) {
+      showStatus('文件解析失败：' + err.message, 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// Download
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  if (!csvContent) return;
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const date = new Date().toISOString().slice(0, 10);
+  a.download = `yagud_live_${date}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+</script>
+</body>
+</html>
