@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yagud Live Tool</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+[data-theme="light"] {
+  --bg: #f5f5f0;
+  --surface: #ffffff;
+  --surface2: #f0f0eb;
+  --border: #e0ddd8;
+  --border2: #d0cdc8;
+  --accent: #0066cc;
+  --accent-bg: rgba(0,102,204,0.07);
+  --accent2: #e03050;
+  --text: #1a1a1a;
+  --text2: #555;
+  --muted: #999;
+  --success: #18a058;
+  --gold: #b07a00;
+  --gold-bg: rgba(176,122,0,0.07);
+  --shadow: 0 1px 4px rgba(0,0,0,0.07);
+  --grid-color: rgba(0,0,0,0.035);
+}
+
+[data-theme="dark"] {
+  --bg: #0a0a0f;
+  --surface: #13131a;
+  --surface2: #1a1a24;
+  --border: #1e1e2e;
+  --border2: #2a2a3e;
+  --accent: #00e5ff;
+  --accent-bg: rgba(0,229,255,0.06);
+  --accent2: #ff3d71;
+  --text: #e8e8f0;
+  --text2: #b0b0c0;
+  --muted: #5a5a7a;
+  --success: #00e096;
+  --gold: #ffd166;
+  --gold-bg: rgba(255,209,102,0.06);
+  --shadow: none;
+  --grid-color: rgba(0,229,255,0.025);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Noto Sans SC', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 36px 20px 60px;
+  transition: background 0.25s, color 0.25s;
+}
+
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(var(--grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none; z-index: 0;
+}
+
+.container { width: 100%; max-width: 780px; position: relative; z-index: 1; }
+
+/* ── Top bar ── */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 28px;
+  gap: 8px;
+}
+
+.logo-tag {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--accent);
+  letter-spacing: 3px;
+  border: 1px solid var(--accent);
+  padding: 4px 12px;
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+
+.topbar-controls { display: flex; gap: 8px; }
+
+.ctrl-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 14px;
+  cursor: pointer;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 1px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.ctrl-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ── Header ── */
+header { text-align: center; margin-bottom: 28px; }
+h1 { font-size: 28px; font-weight: 700; margin-bottom: 6px; letter-spacing: -0.3px; }
+h1 span { color: var(--accent); }
+.subtitle { color: var(--muted); font-size: 13px; font-weight: 300; }
+
+/* ── Mode switcher ── */
+.mode-switcher {
+  display: flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px;
+  margin-bottom: 20px;
+  gap: 4px;
+  box-shadow: var(--shadow);
+}
+
+.mode-btn {
+  flex: 1; padding: 9px 16px;
+  border: none; border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+
+.mode-btn.active { background: var(--accent); color: #fff; font-weight: 500; }
+[data-theme="dark"] .mode-btn.active { color: #0a0a0f; }
+
+/* ── Steps ── */
+.steps { display: flex; align-items: center; margin-bottom: 20px; }
+.step {
+  display: flex; align-items: center; gap: 7px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px; letter-spacing: 1px;
+  color: var(--muted); flex: 1;
+}
+.step.active { color: var(--accent); }
+.step.done { color: var(--success); }
+.step-num {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 1px solid currentColor;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; flex-shrink: 0;
+}
+.step.done .step-num { background: var(--success); border-color: var(--success); color: #fff; }
+.step-line { flex: 1; height: 1px; background: var(--border); margin: 0 8px; }
+
+/* ── Upload zone ── */
+.upload-zone {
+  border: 1.5px dashed var(--border2);
+  border-radius: 6px;
+  padding: 44px 40px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--surface);
+  margin-bottom: 16px;
+  position: relative; overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.upload-zone::before {
+  content: ''; position: absolute; top: 0; left: 0;
+  width: 3px; height: 100%;
+  background: var(--accent); opacity: 0; transition: opacity 0.2s;
+}
+
+.upload-zone:hover, .upload-zone.dragover { border-color: var(--accent); background: var(--accent-bg); }
+.upload-zone:hover::before, .upload-zone.dragover::before { opacity: 1; }
+.upload-zone.uploaded { border-color: var(--success); border-style: solid; padding: 18px 24px; }
+.upload-zone.uploaded::before { background: var(--success); opacity: 1; }
+
+input[type="file"] { display: none; }
+.upload-icon { font-size: 32px; margin-bottom: 10px; display: block; }
+.upload-title { font-size: 15px; font-weight: 500; margin-bottom: 6px; }
+.upload-hint { font-size: 12px; color: var(--muted); }
+.upload-hint b { color: var(--accent); font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 400; }
+
+.upload-success { display: none; align-items: center; gap: 10px; font-size: 13px; }
+.upload-success .check { color: var(--success); font-size: 18px; }
+.upload-success .fname { color: var(--text); font-weight: 500; }
+.upload-success .reupload {
+  margin-left: auto;
+  font-family: 'Space Mono', monospace; font-size: 10px;
+  color: var(--muted); cursor: pointer; letter-spacing: 1px; text-decoration: underline;
+}
+.upload-success .reupload:hover { color: var(--accent); }
+
+/* ── Status ── */
+.status {
+  display: none; align-items: center; gap: 10px;
+  padding: 11px 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; margin-bottom: 16px; font-size: 13px;
+  box-shadow: var(--shadow);
+}
+.status.show { display: flex; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0; animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.status.done .status-dot { background: var(--success); animation: none; }
+.status.error .status-dot { background: var(--accent2); animation: none; }
+
+/* ── Stats ── */
+.stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 16px; }
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border);
+  padding: 13px 15px; border-radius: 6px; box-shadow: var(--shadow);
+}
+.stat-label { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 2px; margin-bottom: 4px; }
+.stat-value { font-size: 20px; font-weight: 700; color: var(--accent); font-family: 'Space Mono', monospace; }
+
+/* ── Section label ── */
+.section-label {
+  font-family: 'Space Mono', monospace; font-size: 10px;
+  letter-spacing: 3px; color: var(--muted); text-transform: uppercase;
+  margin-bottom: 14px; display: flex; align-items: center; gap: 10px;
+}
+.section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* ── Card ── */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow);
+}
+
+/* ── Form fields ── */
+.field-group { display: flex; flex-direction: column; gap: 5px; }
+
+.field-group label {
+  font-family: 'Space Mono', monospace; font-size: 10px;
+  letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase;
+}
+
+.field-group input,
+.field-group textarea {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; padding: 9px 11px;
+  color: var(--text); font-family: 'Noto Sans SC', sans-serif;
+  font-size: 13px; outline: none;
+  transition: border-color 0.15s, background 0.15s; width: 100%;
+}
+
+.field-group input:focus,
+.field-group textarea:focus { border-color: var(--accent); background: var(--surface); }
+
+.field-group.gold label { color: var(--gold); }
+.field-group.gold input:focus,
+.field-group.gold textarea:focus { border-color: var(--gold); }
+
+.field-group input::placeholder,
+.field-group textarea::placeholder { color: var(--muted); font-size: 12px; }
+.field-group textarea { resize: vertical; min-height: 84px; line-height: 1.6; }
+.field-group.full { grid-column: 1 / -1; }
+
+.char-count { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); text-align: right; }
+.char-count.warn { color: var(--accent2); }
+
+/* ── Grids ── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
+.mb { margin-bottom: 16px; }
+
+/* ── Account dropdowns ── */
+.acct-panel {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+.acct-panel.show { display: block; }
+.acct-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.acct-row { display: flex; gap: 6px; align-items: center; }
+.acct-row select {
+  flex: 1;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; padding: 8px 10px;
+  color: var(--text); font-family: 'Noto Sans SC', sans-serif;
+  font-size: 13px; outline: none;
+  transition: border-color 0.15s;
+}
+.acct-row select:focus { border-color: var(--accent); }
+.acct-manage-btn {
+  background: transparent; border: 1px solid var(--border);
+  border-radius: 4px; padding: 7px 10px;
+  color: var(--muted); cursor: pointer; font-size: 13px;
+  transition: all 0.15s; flex-shrink: 0;
+}
+.acct-manage-btn:hover { border-color: var(--accent); color: var(--accent); }
+.acct-add-row {
+  display: flex; gap: 6px; margin-top: 8px;
+}
+.acct-add-row input {
+  flex: 1; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; padding: 7px 10px;
+  color: var(--text); font-family: 'Noto Sans SC', sans-serif;
+  font-size: 12px; outline: none;
+}
+.acct-add-row input:focus { border-color: var(--accent); }
+.acct-add-row button {
+  background: var(--accent); border: none; border-radius: 4px;
+  padding: 7px 12px; color: #fff; cursor: pointer;
+  font-size: 12px; font-family: 'Space Mono', monospace;
+  font-weight: 700; flex-shrink: 0;
+}
+[data-theme="dark"] .acct-add-row button { color: #0a0a0f; }
+.acct-del-btn {
+  background: transparent; border: 1px solid var(--border);
+  border-radius: 4px; padding: 7px 8px;
+  color: var(--accent2); cursor: pointer; font-size: 12px;
+  flex-shrink: 0;
+}
+.acct-del-btn:hover { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+
+/* ── Review panel ── */
+.review-panel {
+  display: none;
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 3px solid var(--gold);
+  border-radius: 6px; padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow);
+}
+.review-panel.show { display: block; }
+
+/* ── Preview table ── */
+.preview-section { display: none; margin-bottom: 16px; }
+.preview-section.show { display: block; }
+
+.table-wrap {
+  overflow-x: auto; border: 1px solid var(--border);
+  border-radius: 6px; background: var(--surface); box-shadow: var(--shadow);
+}
+
+table { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+th {
+  padding: 9px 11px; text-align: left;
+  font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 1px;
+  color: var(--accent); border-bottom: 1px solid var(--border);
+  font-weight: 400; background: var(--surface2);
+}
+th.gc { color: var(--gold); }
+td { padding: 8px 11px; border-bottom: 1px solid var(--border); color: var(--text2); }
+td.gc { color: var(--gold); font-style: italic; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--accent-bg); }
+
+/* ── Download button ── */
+.btn-download {
+  display: block; width: 100%; padding: 14px;
+  background: var(--accent); color: #fff;
+  border: none; cursor: pointer;
+  font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase;
+  border-radius: 6px; transition: all 0.15s; margin-bottom: 0;
+}
+[data-theme="dark"] .btn-download { color: #0a0a0f; }
+.btn-download:hover { opacity: 0.88; transform: translateY(-1px); }
+.btn-download:disabled { opacity: 0.25; cursor: not-allowed; transform: none; }
+
+footer {
+  margin-top: 36px; text-align: center;
+  font-family: 'Space Mono', monospace; font-size: 10px;
+  color: var(--muted); letter-spacing: 2px;
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="logo-tag">YAGUD FITNESS</div>
+    <div class="topbar-controls">
+      <button class="ctrl-btn" id="langBtn">🌐 <span id="langLabel">English</span></button>
+      <button class="ctrl-btn" id="themeBtn">☀️ <span id="themeLabel" data-zh="深色模式" data-en="Dark Mode">深色模式</span></button>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header>
+    <h1><span data-zh="直播数据" data-en="Live Data">直播数据</span><span style="color:var(--accent)" data-zh="提取工具" data-en="Extract Tool">提取工具</span></h1>
+    <p class="subtitle" data-zh="上传 TikTok 导出文件 或 手动填写数据 → 下载 CSV 导入 Lark" data-en="Upload TikTok export file or fill in manually → Download CSV to import into Lark">上传 TikTok 导出文件 或 手动填写数据 → 下载 CSV 导入 Lark</p>
+  </header>
+
+  <!-- Mode switcher -->
+  <div class="mode-switcher">
+    <button class="mode-btn active" id="modeUpload" onclick="switchMode('upload')">
+      📂 <span data-zh="上传 TikTok 文件" data-en="Upload TikTok File">上传 TikTok 文件</span>
+    </button>
+    <button class="mode-btn" id="modeManual" onclick="switchMode('manual')">
+      ✏️ <span data-zh="手动填写数据" data-en="Manual Entry">手动填写数据</span>
+    </button>
+  </div>
+
+  <!-- ══ UPLOAD MODE ══ -->
+  <div id="uploadMode">
+    <div class="steps">
+      <div class="step active" id="step1"><div class="step-num">1</div><span data-zh="上传文件" data-en="Upload File">上传文件</span></div>
+      <div class="step-line"></div>
+      <div class="step" id="step2"><div class="step-num">2</div><span data-zh="填写复盘" data-en="Fill in Review">填写复盘</span></div>
+      <div class="step-line"></div>
+      <div class="step" id="step3"><div class="step-num">3</div><span data-zh="下载 CSV" data-en="Download CSV">下载 CSV</span></div>
+    </div>
+
+    <!-- Upload grid: two zones side by side -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+
+      <!-- Zone 1: Live Performance -->
+      <div>
+        <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--accent);margin-bottom:8px;text-transform:uppercase;">
+          📊 Live Performance
+        </div>
+        <div class="upload-zone" id="uploadZonePerf" style="padding:28px 16px;margin-bottom:0;">
+          <input type="file" id="fileInputPerf" accept=".xlsx,.xls,.csv">
+          <div id="uploadDefaultPerf">
+            <span class="upload-icon" style="font-size:26px;margin-bottom:8px;">📂</span>
+            <div class="upload-title" style="font-size:13px;" data-zh="点击或拖拽上传" data-en="Click or Drop File">点击或拖拽上传</div>
+            <div class="upload-hint" data-zh="品牌账号 / 中控账号导出" data-en="Brand or Creator export">品牌账号 / 中控账号导出</div>
+          </div>
+          <div class="upload-success" id="uploadSuccessPerf">
+            <span class="check">✓</span>
+            <span class="fname" id="uploadedNamePerf" style="font-size:12px;"></span>
+            <span class="reupload" id="reuploadBtnPerf" data-zh="重传" data-en="Re-upload">重传</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Zone 2: Live Dashboard -->
+      <div>
+        <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--accent);margin-bottom:8px;text-transform:uppercase;">
+          📈 Live Dashboard
+        </div>
+        <div class="upload-zone" id="uploadZoneDash" style="padding:28px 16px;margin-bottom:0;">
+          <input type="file" id="fileInputDash" accept=".xlsx,.xls,.csv">
+          <div id="uploadDefaultDash">
+            <span class="upload-icon" style="font-size:26px;margin-bottom:8px;">📂</span>
+            <div class="upload-title" style="font-size:13px;" data-zh="点击或拖拽上传" data-en="Click or Drop File">点击或拖拽上传</div>
+            <div class="upload-hint" data-zh="LIVE Dashboard 导出（可选）" data-en="LIVE Dashboard export (optional)">LIVE Dashboard 导出（可选）</div>
+          </div>
+          <div class="upload-success" id="uploadSuccessDash">
+            <span class="check">✓</span>
+            <span class="fname" id="uploadedNameDash" style="font-size:12px;"></span>
+            <span class="reupload" id="reuploadBtnDash" data-zh="重传" data-en="Re-upload">重传</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="status" id="status">
+      <div class="status-dot"></div>
+      <span id="statusText"></span>
+    </div>
+
+    <div id="warnBar" style="display:none;flex-direction:column;gap:10px;padding:14px 16px;background:var(--surface);border:1px solid var(--accent2);border-left:3px solid var(--accent2);border-radius:6px;margin-bottom:16px;box-shadow:var(--shadow);">
+      <div style="display:flex;align-items:center;gap:8px;font-size:13px;">
+        <span style="color:var(--accent2);font-size:16px;">⚠️</span>
+        <span class="warn-msg" style="color:var(--text2);flex:1;"></span>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="warn-cancel" style="padding:7px 16px;border:1px solid var(--border);border-radius:4px;background:transparent;color:var(--muted);cursor:pointer;font-size:12px;font-family:Space Mono,monospace;letter-spacing:1px;">取消</button>
+        <button class="warn-anyway" style="padding:7px 16px;border:none;border-radius:4px;background:var(--accent2);color:#fff;cursor:pointer;font-size:12px;font-family:Space Mono,monospace;font-weight:700;letter-spacing:1px;">仍然上传</button>
+      </div>
+    </div>
+
+    <div class="stats-row" id="statsRow" style="display:none">
+      <div class="stat-card">
+        <div class="stat-label" data-zh="场次" data-en="SESSIONS">场次</div>
+        <div class="stat-value" id="statRows">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label" data-zh="TT 字段" data-en="TT FIELDS">TT 字段</div>
+        <div class="stat-value">16</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label" data-zh="总字段" data-en="TOTAL FIELDS">总字段</div>
+        <div class="stat-value" style="color:var(--success)">21</div>
+      </div>
+    </div>
+
+    <!-- Account name & Handle dropdowns -->
+    <div class="acct-panel" id="acctPanel">
+      <div class="section-label" data-zh="账号信息" data-en="Account Info">账号信息</div>
+      <div class="acct-grid">
+        <div>
+          <div class="field-group" style="margin-bottom:6px;">
+            <label>Account name</label>
+          </div>
+          <div class="acct-row">
+            <select id="selAccountName" onchange="tryMergeAndPreview()"></select>
+            <button class="acct-del-btn" onclick="deleteSelected('selAccountName','acctNames')" title="删除当前选项">✕</button>
+          </div>
+          <div class="acct-add-row">
+            <input type="text" id="newAccountName" data-ph-zh="添加新值..." data-ph-en="Add new value..." placeholder="添加新值...">
+            <button onclick="addOption('selAccountName','newAccountName','acctNames')" data-zh="添加" data-en="Add">添加</button>
+          </div>
+        </div>
+        <div>
+          <div class="field-group" style="margin-bottom:6px;">
+            <label>Handle</label>
+          </div>
+          <div class="acct-row">
+            <select id="selHandle" onchange="tryMergeAndPreview()"></select>
+            <button class="acct-del-btn" onclick="deleteSelected('selHandle','acctHandles')" title="删除当前选项">✕</button>
+          </div>
+          <div class="acct-add-row">
+            <input type="text" id="newHandle" data-ph-zh="添加新值..." data-ph-en="Add new value..." placeholder="添加新值...">
+            <button onclick="addOption('selHandle','newHandle','acctHandles')" data-zh="添加" data-en="Add">添加</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="review-panel" id="reviewPanelUpload">
+      <div class="section-label" data-zh="填写复盘信息" data-en="Review Information">填写复盘信息</div>
+      <div class="grid-2">
+        <div class="field-group gold">
+          <label data-zh="主播1 · Host 1" data-en="Host 1">主播1 · Host 1</label>
+          <input type="text" id="u_host1" data-ph-zh="主播姓名" data-ph-en="Host name" placeholder="主播姓名">
+        </div>
+        <div class="field-group gold">
+          <label data-zh="主播2 · Host 2" data-en="Host 2">主播2 · Host 2</label>
+          <input type="text" id="u_host2" data-ph-zh="主播姓名（可选）" data-ph-en="Host name (optional)" placeholder="主播姓名（可选）">
+        </div>
+        <div class="field-group gold">
+          <label data-zh="中控1 · Operator 1" data-en="Operator 1">中控1 · Operator 1</label>
+          <input type="text" id="u_op1" data-ph-zh="中控姓名" data-ph-en="Operator name" placeholder="中控姓名">
+        </div>
+        <div class="field-group gold">
+          <label data-zh="中控2 · Operator 2" data-en="Operator 2">中控2 · Operator 2</label>
+          <input type="text" id="u_op2" data-ph-zh="中控姓名（可选）" data-ph-en="Operator name (optional)" placeholder="中控姓名（可选）">
+        </div>
+        <div class="field-group gold full">
+          <label data-zh="直播复盘 · Live Review" data-en="Live Review">直播复盘 · Live Review</label>
+          <textarea id="u_review" data-ph-zh="请填写本场直播复盘，包括亮点、问题及改进建议..." data-ph-en="Please fill in the live review, including highlights, issues and suggestions..." maxlength="200" placeholder="请填写本场直播复盘，包括亮点、问题及改进建议..."></textarea>
+          <div class="char-count" id="u_charCount">0 / 200</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="preview-section" id="previewSectionUpload">
+      <div class="section-label" data-zh="数据预览（前3行）" data-en="Data Preview (first 3 rows)">数据预览（前3行）</div>
+      <div class="table-wrap"><table id="previewTableUpload"></table></div>
+    </div>
+
+    <button class="btn-download" id="downloadBtnUpload" disabled data-zh="⬇ 下载 CSV 文件" data-en="⬇ Download CSV File">⬇ 下载 CSV 文件</button>
+  </div>
+
+  <!-- ══ MANUAL MODE ══ -->
+  <div id="manualMode" style="display:none">
+    <div class="steps">
+      <div class="step active" id="mstep1"><div class="step-num">1</div><span data-zh="填写数据" data-en="Enter Data">填写数据</span></div>
+      <div class="step-line"></div>
+      <div class="step" id="mstep2"><div class="step-num">2</div><span data-zh="填写复盘" data-en="Fill in Review">填写复盘</span></div>
+      <div class="step-line"></div>
+      <div class="step" id="mstep3"><div class="step-num">3</div><span data-zh="下载 CSV" data-en="Download CSV">下载 CSV</span></div>
+    </div>
+
+    <div class="card">
+      <div class="section-label" data-zh="基础信息" data-en="Basic Info">基础信息</div>
+      <div class="grid-2 mb">
+        <div class="field-group full">
+          <label>Room ID</label>
+          <input type="text" id="m_roomid" data-ph-zh="直播间ID" data-ph-en="Room ID" placeholder="直播间ID" oninput="onManualChange()">
+        </div>
+        <div class="field-group">
+          <label data-zh="直播日期 · Live Date" data-en="Live Date">直播日期 · Live Date</label>
+          <input type="text" id="m_date" data-ph-zh="2026-05-06" data-ph-en="2026-05-06" placeholder="2026-05-06" oninput="onManualChange()">
+        </div>
+        <div class="field-group">
+          <label data-zh="开始时间 · Live Time" data-en="Live Time">开始时间 · Live Time</label>
+          <input type="text" id="m_time" data-ph-zh="10:00" data-ph-en="10:00" placeholder="10:00" oninput="onManualChange()">
+        </div>
+        <div class="field-group">
+          <label>Account name</label>
+          <input type="text" id="m_account" data-ph-zh="账号名称" data-ph-en="Account name" placeholder="账号名称" oninput="onManualChange()">
+        </div>
+        <div class="field-group">
+          <label>Handle</label>
+          <input type="text" id="m_handle" data-ph-zh="@yagudfit" data-ph-en="@yagudfit" placeholder="@yagudfit" oninput="onManualChange()">
+        </div>
+        <div class="field-group gold">
+          <label data-zh="主播1 · Host 1" data-en="Host 1">主播1 · Host 1</label>
+          <input type="text" id="m_host1" data-ph-zh="主播姓名" data-ph-en="Host name" placeholder="主播姓名" oninput="onManualChange()">
+        </div>
+        <div class="field-group gold">
+          <label data-zh="主播2 · Host 2" data-en="Host 2">主播2 · Host 2</label>
+          <input type="text" id="m_host2" data-ph-zh="主播姓名（可选）" data-ph-en="Host name (optional)" placeholder="主播姓名（可选）" oninput="onManualChange()">
+        </div>
+        <div class="field-group gold">
+          <label data-zh="中控1 · Coordinator 1" data-en="Coordinator 1">中控1 · Coordinator 1</label>
+          <input type="text" id="m_op1" data-ph-zh="中控姓名" data-ph-en="Coordinator name" placeholder="中控姓名" oninput="onManualChange()">
+        </div>
+        <div class="field-group gold">
+          <label data-zh="中控2 · Coordinator 2" data-en="Coordinator 2">中控2 · Coordinator 2</label>
+          <input type="text" id="m_op2" data-ph-zh="中控姓名（可选）" data-ph-en="Coordinator name (optional)" placeholder="中控姓名（可选）" oninput="onManualChange()">
+        </div>
+        <div class="field-group full">
+          <label>Room name</label>
+          <input type="text" id="m_room" data-ph-zh="直播间名称" data-ph-en="Room name" placeholder="直播间名称" oninput="onManualChange()">
+        </div>
+      </div>
+
+      <div class="section-label" data-zh="销售数据" data-en="Sales Data">销售数据</div>
+      <div class="grid-3 mb">
+        <div class="field-group">
+          <label>LIVE duration</label>
+          <input type="text" id="m_duration" data-ph-zh="4h 00m" data-ph-en="4h 00m" placeholder="4h 00m" oninput="onManualChange()">
+        </div>
+        <div class="field-group">
+          <label>LIVE-attributed GMV</label>
+          <input type="text" id="m_gmv" data-ph-zh="如：2418.71" data-ph-en="e.g. 2418.71" placeholder="如：2418.71" oninput="onManualChange()">
+        </div>
+        <div class="field-group">
+          <label>GMV Per Hour</label>
+          <input type="text" id="m_gmvhr" data-ph-zh="如：604.51" data-ph-en="e.g. 604.51" placeholder="如：604.51" oninput="onManualChange()">
+        </div>
+        <div class="field-group">
+          <label>AOV</label>
+          <input type="text" id="m_aov" data-ph-zh="如：44.79" data-ph-en="e.g. 44.79" placeholder="如：44.79" oninput="onManualChange()">
+        </div>
+        <div class="field-group">
+          <label>Viewers</label>
+          <input type="number" id="m_viewers" data-ph-zh="如：8863" data-ph-en="e.g. 8863" placeholder="如：8863" oninput="onManualChange()">
+        </div>
+      </div>
+
+      <div class="section-label" data-zh="流量数据" data-en="Traffic Data">流量数据</div>
+      <div class="grid-3 mb">
+        <div class="field-group">
+          <label>LIVE product clicks</label>
+          <input type="number" id="m_clicks" data-ph-zh="如：974" data-ph-en="e.g. 974" placeholder="如：974" oninput="onManualChange()">
+        </div>
+        <div class="field-group">
+          <label>Views</label>
+          <input type="number" id="m_views" data-ph-zh="如：10083" data-ph-en="e.g. 10083" placeholder="如：10083" oninput="onManualChange()">
+        </div>
+        <div class="field-group">
+          <label>Avg. viewing duration</label>
+          <input type="text" id="m_avgdur" data-ph-zh="如：18.28" data-ph-en="e.g. 18.28" placeholder="如：18.28" oninput="onManualChange()">
+        </div>
+      </div>
+
+      <div class="section-label" data-zh="转化数据" data-en="Conversion Data">转化数据</div>
+      <div class="grid-4">
+        <div class="field-group">
+          <label>CTOR</label>
+          <input type="text" id="m_ctor" data-ph-zh="如：5.54%" data-ph-en="e.g. 5.54%" placeholder="如：5.54%" oninput="onManualChange()">
+        </div>
+        <div class="field-group">
+          <label>Impressions per hour</label>
+          <input type="text" id="m_impr" data-ph-zh="如：78481" data-ph-en="e.g. 78481" placeholder="如：78481" oninput="onManualChange()">
+        </div>
+        <div class="field-group">
+          <label>Tap-through rate</label>
+          <input type="text" id="m_tap" data-ph-zh="如：3.21%" data-ph-en="e.g. 3.21%" placeholder="如：3.21%" oninput="onManualChange()">
+        </div>
+        <div class="field-group">
+          <label>CTR</label>
+          <input type="text" id="m_ctr" data-ph-zh="如：9.66%" data-ph-en="e.g. 9.66%" placeholder="如：9.66%" oninput="onManualChange()">
+        </div>
+        <div class="field-group">
+          <label>New followers</label>
+          <input type="number" id="m_followers" data-ph-zh="如：33" data-ph-en="e.g. 33" placeholder="如：33" oninput="onManualChange()">
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="border-left:3px solid var(--gold)">
+      <div class="section-label" data-zh="直播复盘" data-en="Live Review">直播复盘</div>
+      <div class="field-group gold">
+        <label data-zh="直播复盘 · Live Review" data-en="Live Review">直播复盘 · Live Review</label>
+        <textarea id="m_review" data-ph-zh="请填写本场直播复盘，包括亮点、问题及改进建议..." data-ph-en="Please fill in the live review, including highlights, issues and suggestions..." maxlength="200" placeholder="请填写本场直播复盘，包括亮点、问题及改进建议..." oninput="onManualReviewInput()"></textarea>
+        <div class="char-count" id="m_charCount">0 / 200</div>
+      </div>
+    </div>
+
+    <div class="preview-section" id="previewSectionManual">
+      <div class="section-label" data-zh="数据预览" data-en="Data Preview">数据预览</div>
+      <div class="table-wrap"><table id="previewTableManual"></table></div>
+    </div>
+
+    <button class="btn-download" id="downloadBtnManual" disabled data-zh="⬇ 下载 CSV 文件" data-en="⬇ Download CSV File">⬇ 下载 CSV 文件</button>
+  </div>
+
+  <footer>YAGUD FITNESS · LIVE OPS TOOL · 2026</footer>
+</div>
+
+<script>
+/* ── Account dropdowns ── */
+const ACCT_DEFAULTS = { acctNames: ['Yagud'], acctHandles: ['yagudfit'] };
+
+function loadDropdownOptions(storageKey, selectId) {
+  let opts = [];
+  try { opts = JSON.parse(localStorage.getItem(storageKey)) || []; } catch(e) {}
+  if (!opts.length) opts = [...ACCT_DEFAULTS[storageKey]];
+  const sel = document.getElementById(selectId);
+  sel.innerHTML = '';
+  opts.forEach(v => {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = v;
+    sel.appendChild(o);
+  });
+}
+
+function saveDropdownOptions(storageKey, selectId) {
+  const opts = Array.from(document.getElementById(selectId).options).map(o => o.value);
+  try { localStorage.setItem(storageKey, JSON.stringify(opts)); } catch(e) {}
+}
+
+function addOption(selectId, inputId, storageKey) {
+  const input = document.getElementById(inputId);
+  const val = input.value.trim();
+  if (!val) return;
+  const sel = document.getElementById(selectId);
+  // Check duplicate
+  if (Array.from(sel.options).some(o => o.value === val)) { input.value=''; return; }
+  const o = document.createElement('option');
+  o.value = val; o.textContent = val;
+  sel.appendChild(o);
+  sel.value = val;
+  input.value = '';
+  saveDropdownOptions(storageKey, selectId);
+  tryMergeAndPreview();
+}
+
+function deleteSelected(selectId, storageKey) {
+  const sel = document.getElementById(selectId);
+  if (sel.options.length <= 1) return; // keep at least one
+  sel.remove(sel.selectedIndex);
+  saveDropdownOptions(storageKey, selectId);
+  tryMergeAndPreview();
+}
+
+function initDropdowns() {
+  loadDropdownOptions('acctNames', 'selAccountName');
+  loadDropdownOptions('acctHandles', 'selHandle');
+}
+
+/* ── i18n ── */
+let lang = 'zh';
+
+function applyLang() {
+  document.querySelectorAll('[data-zh]').forEach(el => {
+    // skip elements that are buttons handled separately
+    if (el.tagName === 'BUTTON' && el.id) return;
+    el.textContent = lang === 'zh' ? el.dataset.zh : el.dataset.en;
+  });
+  // placeholders
+  document.querySelectorAll('[data-ph-zh]').forEach(el => {
+    el.placeholder = lang === 'zh' ? el.dataset.phZh : el.dataset.phEn;
+  });
+  // download buttons text content
+  document.querySelectorAll('[data-zh].btn-download').forEach(el => {
+    el.textContent = lang === 'zh' ? el.dataset.zh : el.dataset.en;
+  });
+  // lang button label
+  document.getElementById('langLabel').textContent = lang === 'zh' ? 'English' : '中文';
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+}
+
+document.getElementById('langBtn').addEventListener('click', () => {
+  lang = lang === 'zh' ? 'en' : 'zh';
+  applyLang();
+});
+
+/* ── Theme ── */
+let isDark = false;
+document.getElementById('themeBtn').addEventListener('click', () => {
+  isDark = !isDark;
+  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  document.getElementById('themeBtn').childNodes[0].textContent = isDark ? '🌙 ' : '☀️ ';
+  const lbl = document.getElementById('themeLabel');
+  lbl.dataset.zh = isDark ? '浅色模式' : '深色模式';
+  lbl.dataset.en = isDark ? 'Light Mode' : 'Dark Mode';
+  lbl.textContent = lang === 'zh' ? lbl.dataset.zh : lbl.dataset.en;
+});
+
+/* ── Mode switch ── */
+function switchMode(mode) {
+  const isUpload = mode === 'upload';
+  document.getElementById('uploadMode').style.display = isUpload ? 'block' : 'none';
+  document.getElementById('manualMode').style.display = isUpload ? 'none' : 'block';
+  document.getElementById('modeUpload').className = 'mode-btn' + (isUpload ? ' active' : '');
+  document.getElementById('modeManual').className = 'mode-btn' + (!isUpload ? ' active' : '');
+}
+
+/* ── Constants ── */
+const TT_FIELDS = [
+  'Room ID','Account name','Handle','Room name','Start time','LIVE duration',
+  'LIVE-attributed GMV','GMV Per Hour','AOV','Viewers','LIVE product clicks','Views',
+  'Avg. viewing duration','CTOR','Impressions per hour','Tap-through rate','CTR','New followers'
+];
+// Output fields: Start time is split into Live Date + Live Time
+const OUTPUT_FIELDS = [
+  'Room ID','Live Date','Live Time','Account name','Handle',
+  'LIVE duration','LIVE-attributed GMV','GMV Per Hour','AOV',
+  'Viewers','LIVE product clicks','Views','Avg. viewing duration',
+  'CTOR','Impressions per hour','Tap-through rate','CTR','New followers'
+];
+const REVIEW_FIELDS = ['Host 1','Host 2','Operator 1','Operator 2','Live Review'];
+const ALL_FIELDS = [
+  'Room ID','Live Date','Live Time','Account name','Handle',
+  'Host 1','Host 2','Coordinator 1','Coordinator 2',
+  'Room name','LIVE duration','LIVE-attributed GMV','GMV Per Hour','AOV',
+  'Viewers','LIVE product clicks','Views','Avg. viewing duration',
+  'CTOR','Impressions per hour','Tap-through rate','CTR','New followers',
+  'Live Review'
+];
+
+/* ── Upload mode ── */
+let extractedRows = [];
+
+// ── Two upload zones ──
+let perfData = null;   // extracted rows from Live Performance
+let dashMeta = null;   // meta from Live Dashboard
+
+function setupZone(zoneId, inputId, successId, nameId, reuploadId, onFile) {
+  const zone = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
+  zone.addEventListener('click', e => { if (e.target.id !== reuploadId) input.click(); });
+  document.getElementById(reuploadId).addEventListener('click', e => { e.stopPropagation(); input.value=''; input.click(); });
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('dragover'); if(e.dataTransfer.files[0]) onFile(e.dataTransfer.files[0], zone, successId, nameId, reuploadId); });
+  input.addEventListener('change', () => { if(input.files[0]) onFile(input.files[0], zone, successId, nameId, reuploadId); });
+}
+
+function markZoneSuccess(zone, successId, nameId, reuploadId, filename) {
+  zone.classList.add('uploaded');
+  document.getElementById(successId.replace('Success','Default')).style.display = 'none';
+  const succ = document.getElementById(successId);
+  succ.style.display = 'flex';
+  document.getElementById(nameId).textContent = filename;
+  document.getElementById(reuploadId).textContent = lang==='zh'?'重传':'Re-upload';
+}
+
+setupZone('uploadZonePerf','fileInputPerf','uploadSuccessPerf','uploadedNamePerf','reuploadBtnPerf',
+  (file, zone, sid, nid, rid) => processPerfFile(file, zone, sid, nid, rid));
+
+setupZone('uploadZoneDash','fileInputDash','uploadSuccessDash','uploadedNameDash','reuploadBtnDash',
+  (file, zone, sid, nid, rid) => processDashFile(file, zone, sid, nid, rid));
+
+function processPerfFile(file, zone, sid, nid, rid) {
+  showStatus(lang==='zh' ? '正在读取 Live Performance...' : 'Reading Live Performance...');
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array', cellDates:false });
+      const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header:1, defval:'' });
+      const fileType = detectFileType(raw);
+      if (!fileType || fileType === 'dashboard') {
+        showStatus(lang==='zh'?'请上传 Live Performance 文件（品牌账号或中控账号导出）':'Please upload a Live Performance file (Brand or Creator export)', 'error'); return;
+      }
+      if (fileType === 'brand') processBrand(raw, file, zone, sid, nid, rid);
+      else if (fileType === 'creator') processCreator(raw, file, zone, sid, nid, rid);
+    } catch(err) { showStatus((lang==='zh'?'解析失败：':'Parse error: ') + err.message, 'error'); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function processDashFile(file, zone, sid, nid, rid) {
+  showStatus(lang==='zh' ? '正在读取 Live Dashboard...' : 'Reading Live Dashboard...');
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array', cellDates:false });
+      const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header:1, defval:'' });
+      const fileType = detectFileType(raw);
+      if (fileType !== 'dashboard') {
+        showStatus(lang==='zh'?'请上传 LIVE Dashboard 文件':'Please upload a LIVE Dashboard file', 'error'); return;
+      }
+      // Extract meta from dashboard
+      const meta = {};
+      for (let i = 0; i < Math.min(15, raw.length); i++) {
+        const key = String(raw[i][0]||'').trim();
+        const val = String(raw[i][1]||'').trim();
+        if (key && val) meta[key] = val;
+      }
+      // Find data header for Viewers
+      let headerRow = -1, headers = [];
+      for (let i = 0; i < raw.length; i++) {
+        if (raw[i].includes('Viewers')) { headerRow = i; headers = raw[i].map(h=>String(h).trim()); break; }
+      }
+      let maxViewers = '';
+      if (headerRow !== -1) {
+        const vIdx = headers.indexOf('Viewers');
+        const dataRows = raw.slice(headerRow+1).filter(r => r.some(c=>c!==''&&c!=null));
+        maxViewers = String(Math.max(...dataRows.map(r => Number(r[vIdx])||0)));
+      }
+      // Parse start time
+      let startTime = '';
+      if (meta['Started']) {
+        const m = meta['Started'].match(/(\d{4}-\d{2}-\d{2})/);
+        const t = meta['Started'].match(/(\d{2}:\d{2})/);
+        if (m && t) startTime = `${m[1]} ${t[1]}`;
+      }
+      // Parse duration
+      let duration = '';
+      if (meta['Duration']) {
+        const dm = meta['Duration'].match(/(\d+)h(\d+)m/);
+        if (dm) duration = `${dm[1]}h ${String(dm[2]).padStart(2,'0')}m`;
+      }
+      dashMeta = { roomId: meta['Room ID']||'', creatorName: meta['Creator name']||'', startTime, duration, viewers: maxViewers };
+      markZoneSuccess(zone, sid, nid, rid, file.name);
+      showStatus(lang==='zh'?`Dashboard 读取成功，Room ID: ${dashMeta.roomId}`:`Dashboard loaded, Room ID: ${dashMeta.roomId}`, 'done');
+      tryMergeAndPreview();
+    } catch(err) { showStatus((lang==='zh'?'解析失败：':'Parse error: ') + err.message, 'error'); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function tryMergeAndPreview() {
+  if (!perfData) return;
+  const dm = dashMeta || {};
+  const acctName = document.getElementById('selAccountName') ? document.getElementById('selAccountName').value : '';
+  const handle   = document.getElementById('selHandle')      ? document.getElementById('selHandle').value      : '';
+  extractedRows = perfData.map(row => {
+    const r = [...row];
+    if (dm.roomId  && !r[0])  r[0]  = dm.roomId;    // Room ID from Dashboard
+    if (!r[3]) r[3] = acctName;                       // Account name from dropdown
+    if (!r[4]) r[4] = handle;                         // Handle from dropdown
+    if (dm.viewers && !r[13]) r[13] = dm.viewers;    // Viewers from Dashboard
+    return r;
+  });
+  document.getElementById('acctPanel').classList.add('show');
+  document.getElementById('reviewPanelUpload').classList.add('show');
+  setStep('step', 2);
+  buildUploadPreview();
+}
+
+document.getElementById('u_review').addEventListener('input', function() {
+  const len = this.value.length;
+  const el = document.getElementById('u_charCount');
+  el.textContent = `${len} / 200`;
+  el.className = 'char-count' + (len > 160 ? ' warn' : '');
+  if (extractedRows.length) buildUploadPreview();
+});
+['u_host1','u_host2','u_op1','u_op2'].forEach(id =>
+  document.getElementById(id).addEventListener('input', () => { if(extractedRows.length) buildUploadPreview(); })
+);
+
+function setStep(prefix, n) {
+  [1,2,3].forEach(i => {
+    const el = document.getElementById(prefix + i);
+    if (!el) return;
+    el.className = 'step' + (i<n?' done':i===n?' active':'');
+  });
+}
+
+function showStatus(msg, type='loading') {
+  const el = document.getElementById('status');
+  el.className = 'status show ' + type;
+  document.getElementById('statusText').textContent = msg;
+}
+
+function formatStartTime(val) {
+  if (!val) return '';
+  if (typeof val === 'number') {
+    const d = XLSX.SSF.parse_date_code(val);
+    if (d) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')} ${String(d.H).padStart(2,'0')}:${String(d.M).padStart(2,'0')}`;
+  }
+  const iso = String(val).match(/(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+  return iso ? `${iso[1]} ${iso[2]}` : String(val);
+}
+
+function cleanMoney(val) { return val == null ? '' : String(val).replace(/^\$/, ''); }
+
+/* ── File type detection ──
+   Type A: Brand account export  → has 'Account name' or 'Handle' in header
+   Type B: Creator account export → has 'Livestream' + 'Attributed GMV' in header
+   Type C: LIVE Dashboard         → has 'Room ID' in first few rows as key-value pairs
+*/
+
+function detectFileType(raw) {
+  // Check Type C: Dashboard (Room ID appears as a cell value in first 10 rows)
+  for (let i = 0; i < Math.min(10, raw.length); i++) {
+    if (raw[i][0] && String(raw[i][0]).trim() === 'Room ID') return 'dashboard';
+  }
+  // Find header row
+  for (let i = 0; i < Math.min(10, raw.length); i++) {
+    const row = raw[i].map(h => String(h).trim());
+    if (row.includes('Account name') || row.includes('Handle')) return 'brand';
+    if (row.includes('Livestream') && row.includes('Attributed GMV')) return 'creator';
+  }
+  return null;
+}
+
+function processFile(file) {
+  showStatus(lang==='zh' ? '正在读取文件...' : 'Reading file...');
+  setStep('step', 1);
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array', cellDates:false });
+      const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header:1, defval:'' });
+      const fileType = detectFileType(raw);
+
+      if (!fileType) {
+        showStatus(lang==='zh' ? '无法识别文件格式，请确认文件来源' : 'Unknown file format, please check the file source', 'error');
+        return;
+      }
+
+      const typeLabel = { brand: lang==='zh'?'品牌账号导出':'Brand Account Export', creator: lang==='zh'?'中控账号导出':'Creator Account Export', dashboard: lang==='zh'?'LIVE Dashboard':'LIVE Dashboard' };
+      showStatus((lang==='zh'?'识别为：':'Detected: ') + typeLabel[fileType] + (lang==='zh'?' · 正在处理...' : ' · Processing...'));
+
+      if (fileType === 'brand') processBrand(raw, file);
+      else if (fileType === 'creator') processCreator(raw, file);
+      else if (fileType === 'dashboard') processDashboard(raw, file);
+
+    } catch(err) {
+      showStatus((lang==='zh'?'解析失败：':'Parse error: ') + err.message, 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+/* ── Type A: Brand account ── */
+function processBrand(raw, file, zone, sid, nid, rid) {
+  let headerRow = -1, headers = [];
+  for (let i = 0; i < Math.min(10, raw.length); i++) {
+    if (raw[i].includes('Account name') || raw[i].includes('Handle')) {
+      headerRow = i; headers = raw[i].map(h => String(h).trim()); break;
+    }
+  }
+  if (headerRow === -1) { showStatus(lang==='zh'?'未找到有效表头':'Header not found', 'error'); return; }
+  const colMap = {};
+  TT_FIELDS.forEach(f => { const idx = headers.indexOf(f); if(idx!==-1) colMap[f]=idx; });
+  const dataRows = raw.slice(headerRow+1).filter(r => r.some(c => c!==''&&c!=null));
+  if (!dataRows.length) { showStatus(lang==='zh'?'文件中没有数据行':'No data rows found', 'error'); return; }
+  if (dataRows.length > 1) { showWarning(dataRows, file, colMap, 'brand', zone, sid, nid, rid); return; }
+  perfData = buildRows(dataRows, colMap, 'brand');
+  markZoneSuccess(zone, sid, nid, rid, file.name);
+  showStatus(lang==='zh'?`品牌账号导出，成功读取 ${dataRows.length} 条`:`Brand export, loaded ${dataRows.length} session(s)`, 'done');
+  tryMergeAndPreview();
+}
+
+/* ── Type B: Creator account ── */
+function processCreator(raw, file, zone, sid, nid, rid) {
+  let headerRow = -1, headers = [];
+  for (let i = 0; i < Math.min(10, raw.length); i++) {
+    const row = raw[i].map(h => String(h).trim());
+    if (row.includes('Livestream') && row.includes('Attributed GMV')) {
+      headerRow = i; headers = row; break;
+    }
+  }
+  if (headerRow === -1) { showStatus(lang==='zh'?'未找到有效表头':'Header not found', 'error'); return; }
+  const colMap = {};
+  const creatorFieldMap = { 'Livestream':'Room name', 'Attributed GMV':'LIVE-attributed GMV', 'Product clicks':'LIVE product clicks' };
+  headers.forEach((h, i) => { colMap[creatorFieldMap[h]||h] = i; });
+  const dataRows = raw.slice(headerRow+1).filter(r => r.some(c => c!==''&&c!=null));
+  if (!dataRows.length) { showStatus(lang==='zh'?'文件中没有数据行':'No data rows found', 'error'); return; }
+  if (dataRows.length > 1) { showWarning(dataRows, file, colMap, 'creator', zone, sid, nid, rid); return; }
+  perfData = buildRows(dataRows, colMap, 'creator');
+  markZoneSuccess(zone, sid, nid, rid, file.name);
+  showStatus(lang==='zh'?`中控账号导出，成功读取 ${dataRows.length} 条`:`Creator export, loaded ${dataRows.length} session(s)`, 'done');
+  tryMergeAndPreview();
+}
+
+/* ── Type C: LIVE Dashboard ── */
+function processDashboard(raw, file) {
+  // Extract key-value pairs from top section
+  const meta = {};
+  for (let i = 0; i < Math.min(15, raw.length); i++) {
+    const key = String(raw[i][0]).trim();
+    const val = String(raw[i][1] || '').trim();
+    if (key && val) meta[key] = val;
+  }
+
+  // Find the data header row
+  let headerRow = -1, headers = [];
+  for (let i = 0; i < raw.length; i++) {
+    if (raw[i].includes('Datetime') || raw[i].includes('Views')) {
+      headerRow = i; headers = raw[i].map(h => String(h).trim()); break;
+    }
+  }
+  if (headerRow === -1) { showStatus(lang==='zh'?'未找到数据表头':'Data header not found', 'error'); return; }
+
+  const colMap = {};
+  headers.forEach((h, i) => { colMap[h] = i; });
+
+  // Dashboard has minute-by-minute rows — aggregate
+  const dataRows = raw.slice(headerRow+1).filter(r => r.some(c => c!==''&&c!=null));
+  if (!dataRows.length) { showStatus(lang==='zh'?'文件中没有数据行':'No data rows found', 'error'); return; }
+
+  // Use meta for top-level fields, aggregate for viewers
+  const totalViewers = colMap['Viewers'] !== undefined
+    ? Math.max(...dataRows.map(r => Number(r[colMap['Viewers']])||0))
+    : '';
+
+  // Parse start time from meta "Started"
+  let startTime = '';
+  if (meta['Started']) {
+    const m = meta['Started'].match(/(\d{4}-\d{2}-\d{2})/);
+    const t = meta['Started'].match(/(\d{2}:\d{2})/);
+    if (m && t) startTime = `${m[1]} ${t[1]}`;
+  }
+
+  // Parse duration from meta e.g. "3h37m20s" → "3h 37m"
+  let duration = '';
+  if (meta['Duration']) {
+    const dm = meta['Duration'].match(/(\d+)h(\d+)m/);
+    if (dm) duration = `${dm[1]}h ${dm[2]}m`;
+  }
+
+  // Build a single synthetic row in our colMap format
+  const syntheticColMap = { _meta: meta, _viewers: totalViewers, _start: startTime, _duration: duration };
+  finishExtract([[]], file, false, syntheticColMap, 'dashboard');
+}
+
+function showWarning(dataRows, file, colMap, fileType='brand', zone, sid, nid, rid) {
+  showStatus(lang==='zh'
+    ? `检测到 ${dataRows.length} 条记录，建议每次只上传 1 条`
+    : `Detected ${dataRows.length} sessions — recommended to upload 1 at a time`,
+    'error');
+  const warn = document.getElementById('warnBar');
+  warn.style.display = 'flex';
+  warn.querySelector('.warn-msg').textContent = lang==='zh'
+    ? `文件包含 ${dataRows.length} 条直播记录，复盘信息将对所有记录统一填写。`
+    : `File contains ${dataRows.length} sessions. Review info will apply to all sessions.`;
+  warn.querySelector('.warn-anyway').textContent = lang==='zh' ? '仍然上传' : 'Upload Anyway';
+  warn.querySelector('.warn-cancel').textContent = lang==='zh' ? '取消' : 'Cancel';
+  warn._dataRows = dataRows;
+  warn._file = file;
+  warn._colMap = colMap;
+  warn._fileType = fileType;
+  warn._zone = zone; warn._sid = sid; warn._nid = nid; warn._rid = rid;
+  warn.querySelector('.warn-anyway').onclick = () => {
+    warn.style.display = 'none';
+    const rows = buildRows(warn._dataRows, warn._colMap, warn._fileType||'brand');
+    perfData = rows;
+    if (warn._zone) markZoneSuccess(warn._zone, warn._sid, warn._nid, warn._rid, warn._file.name);
+    warn.style.display = 'none';
+    showStatus(lang==='zh'?`成功读取 ${rows.length} 条记录`:`Loaded ${rows.length} session(s)`, 'done');
+    tryMergeAndPreview();
+  };
+  warn.querySelector('.warn-cancel').onclick = () => {
+    warn.style.display = 'none';
+    document.getElementById('status').className = 'status';
+  };
+}
+
+function secsToDuration(secs) {
+  const s = parseInt(secs) || 0;
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return `${h}h ${String(m).padStart(2,'0')}m`;
+}
+
+function buildRows(dataRows, colMap, fileType) {
+  return dataRows.map(row => {
+    const get = (f, alt) => {
+      const key = alt || f;
+      let v = row[colMap[key]];
+      if (['LIVE-attributed GMV','AOV','GMV Per Hour'].includes(f)) v = cleanMoney(v);
+      else if (v == null) v = '';
+      return String(v);
+    };
+
+    if (fileType === 'brand') {
+      const dt = formatStartTime(row[colMap['Start time']]);
+      const parts = dt.split(' ');
+      return [
+        get('Room ID'), parts[0]||'', parts[1]||'',
+        get('Account name'), get('Handle'),
+        '__HOST1__','__HOST2__','__COORD1__','__COORD2__',
+        get('Room name'), get('LIVE duration'),
+        get('LIVE-attributed GMV'), get('GMV Per Hour'),
+        get('AOV'), get('Viewers'), get('LIVE product clicks'),
+        get('Views'), get('Avg. viewing duration'), get('CTOR'),
+        get('Impressions per hour'), get('Tap-through rate'),
+        get('CTR'), get('New followers'),
+      ];
+    }
+
+    if (fileType === 'creator') {
+      const dt = formatStartTime(row[colMap['Start time']]);
+      const parts = dt.split(' ');
+      // Duration: comes in as seconds integer
+      const rawDur = row[colMap['Duration']];
+      const duration = (rawDur && !isNaN(rawDur)) ? secsToDuration(rawDur) : String(rawDur||'');
+      return [
+        '',              // Room ID — not available
+        parts[0]||'', parts[1]||'',
+        '', '',          // Account name, Handle — not available
+        '__HOST1__','__HOST2__','__COORD1__','__COORD2__',
+        get('Room name','Room name'),
+        duration,
+        cleanMoney(row[colMap['LIVE-attributed GMV']]),
+        cleanMoney(row[colMap['GMV Per Hour']]),
+        cleanMoney(row[colMap['AOV']]),
+        '',              // Viewers — not available
+        get('LIVE product clicks','LIVE product clicks'),
+        get('Views','Views'),
+        get('Avg. viewing duration','Avg. viewing duration'),
+        get('CTOR','CTOR'),
+        get('Impressions per hour','Impressions per hour'),
+        get('Tap-through rate','Tap-through rate'),
+        get('CTR','CTR'),
+        get('New followers','New followers'),
+      ];
+    }
+
+    if (fileType === 'dashboard') {
+      const meta = colMap._meta || {};
+      const startParts = (colMap._start || '').split(' ');
+      return [
+        meta['Room ID'] || '',
+        startParts[0]||'', startParts[1]||'',
+        meta['Creator name'] || '', '',  // Handle not available
+        '__HOST1__','__HOST2__','__COORD1__','__COORD2__',
+        '',              // Room name — not in dashboard meta
+        colMap._duration || '',
+        '', '', '',      // GMV, GMV/hr, AOV — not aggregatable
+        String(colMap._viewers || ''),
+        '', '', '', '', '', '', '', '', '',  // remaining fields
+      ];
+    }
+    return [];
+  });
+}
+
+function finishExtract(dataRows, file, isBulk=false, colMap={}, fileType='brand') {
+  extractedRows = buildRows(dataRows, colMap, fileType);
+
+  const successMsg = lang==='zh' ? `成功提取 ${dataRows.length} 条直播记录` : `Successfully extracted ${dataRows.length} session(s)`;
+  showStatus(successMsg, 'done');
+  document.getElementById('statRows').textContent = dataRows.length;
+  document.getElementById('statsRow').style.display = 'grid';
+  document.getElementById('warnBar').style.display = 'none';
+
+  if (isBulk) {
+    document.getElementById('reviewPanelUpload').classList.remove('show');
+    // clear any previously filled review fields
+    ['u_host1','u_host2','u_op1','u_op2','u_review'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('u_charCount').textContent = '0 / 200';
+  } else {
+    document.getElementById('reviewPanelUpload').classList.add('show');
+  }
+  setStep('step', 2);
+  buildUploadPreview();
+}
+
+function buildUploadPreview() {
+  const host1  = document.getElementById('u_host1').value.trim();
+  const host2  = document.getElementById('u_host2').value.trim();
+  const coord1 = document.getElementById('u_op1').value.trim();
+  const coord2 = document.getElementById('u_op2').value.trim();
+  const review = document.getElementById('u_review').value.trim();
+
+  const fullRows = extractedRows.map(row => {
+    // row = [RoomID, LiveDate, LiveTime, AccName, Handle, __HOST1__, __HOST2__, __COORD1__, __COORD2__, RoomName, ...]
+    const r = [...row];
+    r[5] = host1; r[6] = host2; r[7] = coord1; r[8] = coord2;
+    r.push(review);
+    return r;
+  });
+  renderPreview('previewSectionUpload', 'previewTableUpload', fullRows);
+  window._csvUpload = buildCSV(fullRows);
+  document.getElementById('downloadBtnUpload').disabled = false;
+  setStep('step', 3);
+}
+
+/* ── Manual mode ── */
+function onManualReviewInput() {
+  const el = document.getElementById('m_review');
+  const len = el.value.length;
+  const counter = document.getElementById('m_charCount');
+  counter.textContent = `${len} / 200`;
+  counter.className = 'char-count' + (len > 160 ? ' warn' : '');
+  onManualChange();
+}
+
+const MANUAL_IDS = ['m_roomid','m_date','m_time','m_account','m_handle','m_room','m_duration','m_gmv','m_gmvhr','m_aov','m_viewers','m_clicks','m_views','m_avgdur','m_ctor','m_impr','m_tap','m_ctr','m_followers'];
+
+function onManualChange() {
+  const g = id => document.getElementById(id) ? document.getElementById(id).value.trim() : '';
+  const fullRow = [
+    g('m_roomid'), g('m_date'), g('m_time'),
+    g('m_account'), g('m_handle'),
+    g('m_host1'), g('m_host2'), g('m_op1'), g('m_op2'),
+    g('m_room'), g('m_duration'), g('m_gmv'), g('m_gmvhr'),
+    g('m_aov'), g('m_viewers'), g('m_clicks'), g('m_views'),
+    g('m_avgdur'), g('m_ctor'), g('m_impr'), g('m_tap'),
+    g('m_ctr'), g('m_followers'), g('m_review')
+  ];
+  const hasData = fullRow.slice(0,5).some(v => v !== '');
+  if (!hasData) {
+    document.getElementById('previewSectionManual').classList.remove('show');
+    document.getElementById('downloadBtnManual').disabled = true;
+    setStep('mstep', 1); return;
+  }
+  const hasReview = fullRow.slice(5,10).some(v => v !== '') || fullRow[23] !== '';
+  setStep('mstep', hasReview ? 3 : 2);
+  renderPreview('previewSectionManual', 'previewTableManual', [fullRow]);
+  window._csvManual = buildCSV([fullRow]);
+  document.getElementById('downloadBtnManual').disabled = false;
+}
+
+/* ── Shared ── */
+const REVIEW_COL_INDICES = new Set([5,6,7,8,23]); // Host1,Host2,Coord1,Coord2,LiveReview
+function renderPreview(sectionId, tableId, fullRows) {
+  const preview = fullRows.slice(0,3);
+  let html = '<thead><tr>' +
+    ALL_FIELDS.map((f,i)=>`<th${REVIEW_COL_INDICES.has(i)?' class="gc"':''}>${f}</th>`).join('') +
+    '</tr></thead><tbody>';
+  preview.forEach(row => {
+    html += '<tr>' + row.map((v,i) => `<td${REVIEW_COL_INDICES.has(i)?' class="gc"':''}>${v||'—'}</td>`).join('') + '</tr>';
+  });
+  html += '</tbody>';
+  document.getElementById(tableId).innerHTML = html;
+  document.getElementById(sectionId).classList.add('show');
+}
+
+function buildCSV(rows) {
+  const esc = v => { v=String(v); return (v.includes(',')||v.includes('"')||v.includes('\n'))?'"'+v.replace(/"/g,'""')+'"':v; };
+  return [ALL_FIELDS.map(esc).join(','), ...rows.map(r=>r.map(esc).join(','))].join('\n');
+}
+
+function downloadCSV(csv) {
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `yagud_live_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById('downloadBtnUpload').addEventListener('click', () => { if(window._csvUpload) downloadCSV(window._csvUpload); });
+
+// Init dropdowns on page load
+initDropdowns();
+document.getElementById('downloadBtnManual').addEventListener('click', () => { if(window._csvManual) downloadCSV(window._csvManual); });
+</script>
+</body>
+</html>
